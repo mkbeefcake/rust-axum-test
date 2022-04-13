@@ -10,7 +10,8 @@ publish = false
 futures = "0.3"
 tokio = { version = "1.14.0", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
-axum = { version = "0.5.1", features=["multipart"]}
+axum = { version = "0.5.1", features=["multipart", "ws", "headers"]}
+headers="0.3"
 
 async-trait = "0.1.51"
 async-stream = "0.3.2"

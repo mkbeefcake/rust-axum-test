@@ -1,7 +1,11 @@
 use axum::{
   body::Bytes,
-  extract::{ContentLengthLimit, Multipart},
-  response::{Html, Redirect}, 
+  extract::{ContentLengthLimit, Multipart, TypedHeader, 
+    ws::{
+      WebSocket, WebSocketUpgrade, Message
+    }
+  },
+  response::{Html, Redirect, IntoResponse}, 
   routing::get, 
   Router, BoxError,
   http::StatusCode,
@@ -14,7 +18,9 @@ use tokio_util::io::StreamReader;
 #[tokio::main]
 async fn main() {
 
-  let app = Router::new().route("/", get(handler).post(upload_file));
+  let app = Router::new()
+    .route("/", get(handler).post(upload_file))
+    .route("/ws", get(ws_handler));
 
   // run it
   let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -81,4 +87,53 @@ where
     tokio::io::copy(&mut body_reader, &mut file).await?;
 
     Ok(())
+}
+
+async fn ws_handler(
+  ws:WebSocketUpgrade,
+  user_agent: Option<TypedHeader<headers::UserAgent>>
+) -> impl IntoResponse {
+  if let Some(TypedHeader(user_agent)) = user_agent {
+    println!("`{}` connected", user_agent.as_str());
+  }
+
+  ws.on_upgrade(handle_socket)
+}
+
+static mut PROGRESS: i32 = 0;
+
+async fn handle_socket(mut socket: WebSocket) {
+
+  loop {
+
+    if let Some(msg) = socket.recv().await {
+      if let Ok(msg) = msg {
+
+        let request_msg = msg.into_text().unwrap();
+        println!("Client updates the progress {:?}", request_msg);
+
+        match request_msg.parse::<i32>() {
+          Ok(n) => unsafe { 
+            PROGRESS = n ;
+          }
+          Err(_) => {
+          }
+        }
+
+        if socket
+          .send(Message::Text(unsafe{ PROGRESS.to_string() } ))
+          .await
+          .is_err()
+          {
+            println!("client disconnected");
+            return;
+          }
+      }
+      else {
+        print!("client disconnected");
+        return;
+      }
+    }
+  }
+
 }
