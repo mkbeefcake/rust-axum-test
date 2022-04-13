@@ -116,7 +116,7 @@ async fn handle_socket(mut socket: WebSocket) {
           Ok(n) => unsafe { 
             PROGRESS = n ;
           }
-          Err(_) => {
+          Err(_) => { 
           }
         }
 
